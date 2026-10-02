@@ -43,7 +43,7 @@
     "build": "tsdown src/index.ts src/bin.ts --format esm --dts",
     "prepack": "pnpm build",
     "test": "vitest run",
-    "check:effect": "effect-language-service diagnostics --project tsconfig.json --format text"
+    "check:effect": "effect-tsgo diagnostics --project tsconfig.json --format text"
   },
   "peerDependencies": {
     "effect": "^4.0.0"

@@ -13,7 +13,6 @@ minimumReleaseAgeExclude:
   - undici@8.11.2
   - ws@8.22.0
   - "@cloudflare/workers-types@5.20260926.1"
-  - "@effect/language-service@0.87.3"
 catalogMode: strict
 cleanupUnusedCatalogs: true
 overrides:
@@ -29,5 +28,5 @@ catalog:
   effect: 4.0.0
   repojj: ^2026.7.29
   tsdown: ^0.23.0
-  typescript: ~6.0.3
+  typescript: ~7.0.2
   vitest: ^5.0.1
