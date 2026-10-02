@@ -195,11 +195,13 @@ type Prepared = {
 
 /**
  * Reads what was typed: the flags given, the defaults for those that weren't, and `--body`. A
- * destructive command without `--yes` stops here, before a wrap's code runs.
+ * destructive command without `--yes`, or an invocation missing a flag or giving a bad value, stops
+ * here, before a wrap's code runs; the flags it `fills` count as given.
  */
 const prepare = <E, R>(
   command: ClapioCommand,
   defaults: ReadonlyArray<[string, Defaults<E, R>[string]]>,
+  fills: ReadonlyArray<string>,
 ) =>
   Effect.fnUntraced(function* ({ flags, body: bodyFlag, isDryRun, isConfirmed }: GeneratedInput) {
     if (command.isDestructive && !isConfirmed && !isDryRun) {
@@ -229,7 +231,7 @@ const prepare = <E, R>(
         )
       : undefined;
     const idempotencyKey = crypto.randomUUID();
-    const send: Prepared['send'] = Effect.fnUntraced(function* (values = {}) {
+    const requestWith = Effect.fnUntraced(function* (values: { readonly [flag: string]: unknown }) {
       const request = buildRequest(
         command,
         {
@@ -240,12 +242,19 @@ const prepare = <E, R>(
         },
         { newIdempotencyKey: () => idempotencyKey },
       );
-      if (Result.isFailure(request)) return yield* fail(usageFailure(request.failure.message));
+      return Result.isFailure(request)
+        ? yield* fail(usageFailure(request.failure.message))
+        : request.success;
+    });
+    // Code supplies what it fills, so any value stands in for it here.
+    yield* requestWith(Object.fromEntries(fills.map(flag => [flag, null])));
+    const send: Prepared['send'] = Effect.fnUntraced(function* (values = {}) {
+      const request = yield* requestWith(values);
       if (isDryRun) {
-        yield* Console.log(dryRunOutput(request.success));
+        yield* Console.log(dryRunOutput(request));
         return Option.none();
       }
-      return Option.some(yield* execute(command, request.success));
+      return Option.some(yield* execute(command, request));
     });
     return { command, isDryRun, send } satisfies Prepared;
   });
@@ -372,7 +381,7 @@ const leafCommand = <E, R>(
     command,
     new Set([...ownDefaults.map(([flag]) => flag), ...(wrapped?.fills ?? [])]),
   );
-  const run = prepare(command, ownDefaults);
+  const run = prepare(command, ownDefaults, wrapped?.fills ?? []);
   const leaf =
     wrapped === undefined
       ? Command.make(
@@ -417,7 +426,8 @@ const discoveryCommands = (manifest: Manifest, handWritten: ReadonlyArray<Listin
   ),
 ];
 
-type Extras = { readonly [group: string]: ReadonlyArray<Command.Command.Any> };
+/** Hand-written commands, keyed by the generated group each joins. */
+type Extend = { readonly [group: string]: ReadonlyArray<Command.Command.Any> };
 
 /** The commands under `prefix`: a leaf for a command one word deep, a group for a deeper one. */
 // ponytail: typed as `Command.Command.Any`, so `commands`' declared E and R go unchecked against the
@@ -427,7 +437,7 @@ const tree = <E, R>(
   prefix: ReadonlyArray<string>,
   options: {
     readonly defaults: Defaults<E, R>;
-    readonly extend: Extras;
+    readonly extend: Extend;
     readonly wraps: ReadonlyMap<string, Wrap<unknown>>;
   },
 ): ReadonlyArray<Command.Command.Any> =>
@@ -466,16 +476,18 @@ const tree = <E, R>(
  * commands to a generated group (`{ brands: [useBrandCommand] }`). `wrap` puts your code around
  * generated commands (see `wrap`).
  */
+// `extend` is one type parameter, its commands read off it: one inferred from each group's array
+// would take the first group's command and refuse every other.
 export const commands = <
   E = never,
   R = never,
-  const Extra extends Command.Command.Any = never,
+  const X extends Extend = {},
   const W extends Wrap<unknown> = never,
 >(
   spec: Spec,
   options: {
     readonly defaults?: Defaults<E, R>;
-    readonly extend?: { readonly [group: string]: ReadonlyArray<Extra> };
+    readonly extend?: X;
     readonly wrap?: ReadonlyArray<W>;
   } = {},
 ): ReadonlyArray<
@@ -483,12 +495,20 @@ export const commands = <
     string,
     unknown,
     unknown,
-    CliError.UserError | E | Command.Error<Extra>,
-    HttpClient.HttpClient | R | Command.Services<Extra> | WrapServices<W>
+    CliError.UserError | E | Command.Error<X[keyof X][number]>,
+    HttpClient.HttpClient | R | Command.Services<X[keyof X][number]> | WrapServices<W>
   >
 > => {
   const manifest = Result.getOrThrow(fromOpenApi(spec.document));
-  const { extend = {}, defaults = {}, wrap: wraps = [] } = options;
+  const {
+    extend = {},
+    defaults = {},
+    wrap: wraps = [],
+  }: {
+    readonly extend?: Extend;
+    readonly defaults?: Defaults<E, R>;
+    readonly wrap?: ReadonlyArray<W>;
+  } = options;
 
   const groups = new Set(
     manifest.commands.flatMap(({ name }) =>

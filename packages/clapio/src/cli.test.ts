@@ -1,6 +1,7 @@
 import * as NodeServices from '@effect/platform-node/NodeServices';
-import { describe, expect, layer } from '@effect/vitest';
+import { describe, expect, expectTypeOf, layer } from '@effect/vitest';
 import * as Console from 'effect/Console';
+import type * as CliError from 'effect/cli/CliError';
 import * as CliOutput from 'effect/cli/CliOutput';
 import * as Command from 'effect/cli/Command';
 import * as Flag from 'effect/cli/Flag';
@@ -344,6 +345,23 @@ layer(NodeServices.layer)(it => {
       }),
     );
 
+    it.effect('refuses a missing flag before its own code runs, counting what it fills', () =>
+      Effect.gen(function* () {
+        const runs = { count: 0 };
+        const { stderr, calls } = yield* runCli(['pets', 'delete', '--yes'], undefined, [
+          deleteCounted(runs),
+        ]);
+        expect(failure(stderr).error.message).toBe('Missing required --id');
+        expect({ runs: runs.count, calls }).toEqual({ runs: 0, calls: [] });
+        const filled = yield* runCli(
+          ['pets', 'create', '--name-file', yield* fileWith('Tom'), '--kind', 'cat'],
+          () => ({ status: 201, body: PET }),
+          [createFromFile],
+        );
+        expect(Exit.isSuccess(filled.exit)).toBe(true);
+      }),
+    );
+
     it.effect('prints the request on --dry-run and ends there', () =>
       Effect.gen(function* () {
         const file = yield* fileWith('Tom');
@@ -423,6 +441,24 @@ layer(NodeServices.layer)(it => {
     expect(() => Clapio.commands(spec, { wrap: [createFromFile, createFromFile] })).toThrow(
       'pets.create is wrapped twice',
     );
+  });
+
+  it('types the commands by what their defaults and hand-written commands need', () => {
+    const commands = Clapio.commands(spec, {
+      defaults: { 'store-id': Effect.as(FileSystem.FileSystem, Option.none()) },
+      extend: {
+        pets: [
+          Command.make('adopt', {}, () => Effect.fail(new Boom())),
+          Command.make('feed', {}, () => Effect.asVoid(Path.Path)),
+        ],
+      },
+    });
+    expectTypeOf<Command.Services<(typeof commands)[number]>>().toEqualTypeOf<
+      HttpClient.HttpClient | FileSystem.FileSystem | Path.Path
+    >();
+    expectTypeOf<Command.Error<(typeof commands)[number]>>().toEqualTypeOf<
+      CliError.UserError | Boom
+    >();
   });
 
   it('types a wrap by the spec', () => {

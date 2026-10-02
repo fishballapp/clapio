@@ -108,7 +108,9 @@ The operationId, the values `send` takes and what it returns are all checked aga
 module. A wrapped command keeps `--body`, `--dry-run`, `--yes` and its idempotency key:
 
 - every `send` of one run carries the same key, so retrying a `send` replays the write;
-- a destructive command without `--yes` is refused before `run` starts;
+- a destructive command without `--yes`, or an invocation missing a flag or giving a bad value, is
+  refused before `run` starts (the flags in `fills` count as given), so `run`'s side effects wait
+  for a request that can be sent;
 - under `--dry-run`, `send` prints the request and ends the command; `isDryRun` lets `run` skip its
   own side effects before it, and nothing `run` returns is printed.
 

@@ -1,6 +1,6 @@
 {
   "name": "clapio",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "OpenAPI in, agent-first CLI out: one effect/cli command per operation.",
   "license": "MIT",
