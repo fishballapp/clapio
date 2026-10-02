@@ -1,0 +1,33 @@
+packages:
+  - packages/clapio
+autoInstallPeers: true
+strictPeerDependencies: false
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  - effect@4.0.0
+  - "@effect/vitest@4.0.0"
+  - "@effect/platform-node@4.0.0"
+  - "@effect/platform-node-shared@4.0.0"
+  - "@effect/sql-d1@4.0.0"
+  - "@effect/atom-react@4.0.0"
+  - undici@8.11.2
+  - ws@8.22.0
+  - "@cloudflare/workers-types@5.20260926.1"
+  - "@effect/language-service@0.87.3"
+catalogMode: strict
+cleanupUnusedCatalogs: true
+overrides:
+  "@types/node": "catalog:"
+allowBuilds:
+  "@biomejs/biome": true
+  esbuild: true
+catalog:
+  "@biomejs/biome": ^2.5.13
+  "@effect/platform-node": 4.0.0
+  "@effect/vitest": 4.0.0
+  "@types/node": ^24.13.4
+  effect: 4.0.0
+  repojj: ^2026.7.29
+  tsdown: ^0.23.0
+  typescript: ~6.0.3
+  vitest: ^5.0.1

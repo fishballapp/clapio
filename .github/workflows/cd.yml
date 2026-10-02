@@ -1,0 +1,81 @@
+name: CD
+
+# Every push to main runs every gate, then stages a release when the push changes clapio's version.
+# A staged version goes live only once a maintainer approves it with 2FA (`npm stage approve`, or
+# on npmjs.com), so this workflow alone can never put a version in front of users.
+#
+# Keep this filename: npm trusted publishing validates it, and allows it `npm stage publish` only.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    name: Check · typecheck · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm repojj:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  # No token: the workflow's OIDC identity, exchanged by npm for a stage-only publish.
+  stage:
+    name: Stage on npm
+    needs: gates
+    # GitHub-hosted on purpose: npm trusted publishing does not work on self-hosted runners.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: stage
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # The previous commit's version decides whether this push is a release.
+          fetch-depth: 2
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          # Its npm has `npm stage` (11.15 or later).
+          node-version: 26
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      # A staged version is invisible to `npm view`, so "npm lacks it" alone would stage a pending
+      # version again on every push until it is approved, and fail. A push that leaves the version
+      # alone stages nothing; one that changes it stages unless npm already has it.
+      - id: version
+        run: |
+          read_version() { node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version"; }
+          VERSION=$(read_version < packages/clapio/package.json)
+          PREVIOUS=$(git show HEAD^:packages/clapio/package.json 2>/dev/null | read_version 2>/dev/null || true)
+          if [ "$VERSION" = "$PREVIOUS" ] || npm view "clapio@$VERSION" version > /dev/null 2>&1; then
+            echo "clapio@$VERSION: nothing to stage"
+            exit 0
+          fi
+          TAG=$(echo "$VERSION" | grep -oE 'alpha|beta|rc' || true)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG:-latest}" >> "$GITHUB_OUTPUT"
+      # pnpm packs (it resolves `catalog:` and builds dist/ in `prepack`); npm stages the tarball,
+      # since pnpm has no `stage`.
+      - if: steps.version.outputs.version != ''
+        run: |
+          pnpm -F clapio pack --pack-destination "$RUNNER_TEMP"
+          npm stage publish "$RUNNER_TEMP/clapio-$VERSION.tgz" --tag "$TAG"
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}

@@ -1,0 +1,59 @@
+{
+  "name": "clapio",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "OpenAPI in, agent-first CLI out: one effect/cli command per operation.",
+  "license": "MIT",
+  "homepage": "https://github.com/fishballapp/clapio",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fishballapp/clapio.git",
+    "directory": "packages/clapio"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "bin": {
+    "clapio": "./src/bin.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.mjs",
+    "types": "./dist/index.d.mts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      }
+    },
+    "bin": {
+      "clapio": "./dist/bin.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts src/bin.ts --format esm --dts",
+    "prepack": "pnpm build",
+    "test": "vitest run",
+    "check:effect": "effect-language-service diagnostics --project tsconfig.json --format text"
+  },
+  "peerDependencies": {
+    "effect": "^4.0.0"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "catalog:",
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "effect": "catalog:",
+    "tsdown": "catalog:",
+    "vitest": "catalog:"
+  }
+}
