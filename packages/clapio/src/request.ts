@@ -51,8 +51,9 @@ const parseValue = (
   { flag, kind, choices }: Parameter,
   raw: string | boolean,
 ): Result.Result<unknown, UsageError> => {
-  if (typeof raw === 'boolean')
+  if (typeof raw === 'boolean') {
     return kind === 'boolean' ? Result.succeed(raw) : fail(`--${flag} needs a value`);
+  }
   switch (kind) {
     case 'string':
       return choices === undefined || choices.includes(raw)

@@ -327,8 +327,11 @@ export const wrap = <
   const operation = spec.operations[operationId];
   if (operation === undefined) throw new Error(`The spec has no operation ${operationId}`);
   const decode = (command: ClapioCommand, { request, status, text }: Sent) => {
-    const json = parseJson(text);
-    const body = text === '' ? undefined : json === undefined ? text : json;
+    const body = (() => {
+      if (text === '') return undefined;
+      const json = parseJson(text);
+      return json === undefined ? text : json;
+    })();
     return Schema.decodeUnknownEffect(operation.output)(body).pipe(
       Effect.catchTag('SchemaError', error =>
         fail(unexpectedResponseFailure({ command, request, status, message: error.message })),

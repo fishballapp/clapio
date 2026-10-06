@@ -43,8 +43,11 @@ export const responseFailure = ({
   return {
     ...fields,
     code: typeof fields.code === 'string' ? fields.code : 'HttpError',
-    message:
-      typeof fields.message === 'string' ? fields.message : text === '' ? `HTTP ${status}` : text,
+    message: (() => {
+      if (typeof fields.message === 'string') return fields.message;
+      if (text === '') return `HTTP ${status}`;
+      return text;
+    })(),
     status,
     ...idempotencyKeyOf(command, request),
   };

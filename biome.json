@@ -2,6 +2,7 @@
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": { "includes": ["**", "!**/node_modules", "!**/dist", "!**/*.gen.*"] },
+  "plugins": ["./biome-plugins/multiline-if-braces.grit"],
   "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } },
   "linter": {
     "enabled": true,
@@ -56,6 +57,7 @@
         },
         "noParameterAssign": "off",
         "noNonNullAssertion": "error",
+        "noNestedTernary": "error",
         "noUnusedTemplateLiteral": "off",
         "useDefaultParameterLast": "off",
         "useConst": "off",
