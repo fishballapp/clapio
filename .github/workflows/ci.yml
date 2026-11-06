@@ -34,3 +34,6 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      # The published bin runs with nothing installed beside it: it carries its own effect, so a
+      # newer one on npm cannot break it.
+      - run: cp packages/clapio/dist/bin.mjs "$RUNNER_TEMP/bin.mjs" && node "$RUNNER_TEMP/bin.mjs" --help

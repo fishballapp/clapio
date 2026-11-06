@@ -1,6 +1,6 @@
 {
   "name": "clapio",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "OpenAPI in, agent-first CLI out: one effect/cli command per operation.",
   "license": "MIT",
@@ -40,7 +40,7 @@
     }
   },
   "scripts": {
-    "build": "tsdown src/index.ts src/bin.ts --format esm --dts",
+    "build": "tsdown",
     "prepack": "pnpm build",
     "test": "vitest run",
     "check:effect": "effect-tsgo diagnostics --project tsconfig.json --format text"
